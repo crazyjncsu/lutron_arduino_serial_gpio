@@ -108,9 +108,12 @@ void writeLineToSerial(char* buffer, int length, char* format, ...) {
 
 int readLineFromSerial(char* buffer, int length) {
   auto byteCount = Serial.readBytesUntil('\r', buffer, length);
-  
-  if (byteCount > 0 && Serial.read() != '\n')
-    return -1;
+
+  if (byteCount > 0) {
+    byte newLineByte;
+    if (Serial.readBytes(&newLineByte, 1) != 1 || newLineByte != '\n')
+      return -1;
+  }
 
   return byteCount;
 }
