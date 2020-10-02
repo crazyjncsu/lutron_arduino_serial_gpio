@@ -14,6 +14,15 @@ const byte keypadAddressPins[] = { 5, 12 };
 const int ledPin = 27; // 27
 const int ledOnLevel = LOW; // cmon man
 const int ledOffLevel = HIGH;
+#else
+const byte inputPins[] = { 3, 4, 5, 6 };
+const byte outputPins[] = { 7, 8, 9, 10, 11 };
+const byte processorAddressPins[] = { 12 };
+const byte keypadAddressPins[] = { 13 };
+
+const int ledPin = LED_BUILTIN;
+const int ledOnLevel = HIGH;
+const int ledOffLevel = LOW;
 #endif
 
 // these are the base lutron IDs which we offset
