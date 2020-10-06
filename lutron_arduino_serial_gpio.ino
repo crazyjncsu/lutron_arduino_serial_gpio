@@ -6,19 +6,23 @@ const int inputButtonStart = 1; // 3rd column in 24 button keypad view
 const int outputButtonStart = 9; // 2nd column in 24 button keypad view
 
 #ifdef ESP32
-const byte inputPins[] = { 13, 14, 15, 18, 19 };
-const byte outputPins[] = { 21, 22, 23, 25, 26 };
+const byte inputPins[] = { 13, 14, 15, 18 };
+const byte outputPins[] = { 19, 22, 23, 25, 26 };
 const byte processorAddressPins[] = { 4 };
 const byte keypadAddressPins[] = { 5, 12 };
+
+const int transmitPin = 21;
 
 const int ledPin = 27; // 27
 const int ledOnLevel = LOW; // cmon man
 const int ledOffLevel = HIGH;
 #else
-const byte inputPins[] = { 3, 4, 5, 6 };
-const byte outputPins[] = { 7, 8, 9, 10, 11 };
+const byte inputPins[] = { 4, 5, 6, 7 };
+const byte outputPins[] = { 8, 9, 10, 11 };
 const byte processorAddressPins[] = { 12 };
 const byte keypadAddressPins[] = { 13 };
+
+const int transmitPin = 3;
 
 const int ledPin = LED_BUILTIN;
 const int ledOnLevel = HIGH;
@@ -55,6 +59,9 @@ void setup() {
       pinMode(keypadAddressPins[i], INPUT_PULLUP);
   
     pinMode(ledPin, OUTPUT);
+    
+    pinMode(transmitPin, OUTPUT);
+    digitalWrite(transmitPin, HIGH);
   }
 
   { // calculate processor and keypad addresses from pins that are grounded
@@ -103,7 +110,10 @@ void writeLineToSerial(char* buffer, int length, char* format, ...) {
   va_list args;
   va_start(args, format);
   vsnprintf(buffer, length, format, args);
+  digitalWrite(transmitPin, HIGH);
   Serial.println(buffer);
+  Serial.flush();
+  digitalWrite(transmitPin, LOW);
 }
 
 int readLineFromSerial(char* buffer, int length) {
