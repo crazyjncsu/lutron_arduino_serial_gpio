@@ -12,7 +12,7 @@ const byte keypadAddressPins[] = { 5, 12 };
 
 const int transmitPin = 21;
 
-const int ledPin = 27; // 27
+const int ledPin = 27;
 const int ledOnLevel = LOW; // cmon man
 const int ledOffLevel = HIGH;
 #else
@@ -106,7 +106,7 @@ void loop() {
       
       // set output pin for every keypad led
       for (auto i = 0; i < sizeof(outputPins); i++) {
-        auto isLedOn = readBuffer[keypadLedStateButtonZeroIndex + inputButtonStart + i] == '1';
+        auto isLedOn = readBuffer[keypadLedStateButtonZeroIndex + outputButtonStart + i] == '1';
         pinMode(outputPins[i], isLedOn ? OUTPUT : INPUT); // OUTPUT,LOW=grounded
         digitalWrite(outputPins[i], isLedOn ? LOW : HIGH); // INPUT,HIGH=ungrounded
       }
