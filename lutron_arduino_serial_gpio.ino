@@ -1,5 +1,4 @@
-const int pollIntervalMillisecondCount = 500;
-const int readTimeout = 2000;
+const int readTimeoutMillis = 500;
 const int baudRate = 9600;
 
 const int inputButtonStart = 1; // 3rd column in 24 button keypad view
@@ -47,6 +46,8 @@ char writeBuffer[bufferLength];
 int processorAddress;
 int keypadAddress;
 
+bool isLogEnabled;
+
 void setup() {
   { // configure pins
     for (auto i = 0; i < sizeof(inputPins); i++)
@@ -75,55 +76,62 @@ void setup() {
   }
 
   Serial.begin(baudRate);
-  Serial.setTimeout(readTimeout);
+  Serial.setTimeout(readTimeoutMillis);
+
+  isLogEnabled = false;
+  //isLogEnabled = digitalRead(inputPins[0]) == LOW;
+
+  //if (!isLogEnabled)
+  //  writeLogToSerial();
 }
 
 void loop() {
-  digitalWrite(ledPin, ledOnLevel);
-
   writeLineToSerial(writeBuffer, bufferLength, "RKLS,[%d:%d:%d]", processorAddress, keypadLinkAddress, keypadAddress);
 
-  for (auto lineIndex = 0; lineIndex == 0 || Serial.available() > 0; lineIndex++) {
+  auto startTickCount = millis();
+
+  while (true) {
     auto lineLength = readLineFromSerial(readBuffer, bufferLength);
 
+    if (lineLength == 0 && millis() - startTickCount > readTimeoutMillis)
+      break;
+
     if (lineLength == keypadLedStateLength && strncmp(readBuffer, keypadLedStateStart, strlen(keypadLedStateStart)) == 0) {
+      digitalWrite(ledPin, ledOnLevel);
+
       // send keypad button press for any input pin not matching keypad button led state
       for (auto i = 0; i < sizeof(inputPins); i++)
         if ((digitalRead(inputPins[i]) == LOW) != (readBuffer[keypadLedStateButtonZeroIndex + inputButtonStart + i] == '1'))
           writeLineToSerial(writeBuffer, bufferLength, "KBP,[%d:%d:%d],%d", processorAddress, keypadLinkAddress, keypadAddress, inputButtonStart + i);
-  
+      
       // set output pin for every keypad led
       for (auto i = 0; i < sizeof(outputPins); i++) {
         auto isLedOn = readBuffer[keypadLedStateButtonZeroIndex + inputButtonStart + i] == '1';
         pinMode(outputPins[i], isLedOn ? OUTPUT : INPUT); // OUTPUT,LOW=grounded
         digitalWrite(outputPins[i], isLedOn ? LOW : HIGH); // INPUT,HIGH=ungrounded
       }
+  
+      digitalWrite(ledPin, ledOffLevel);
     }
   }
-  
-  digitalWrite(ledPin, ledOffLevel);
-  
-  delay(pollIntervalMillisecondCount);
 }
 
 void writeLineToSerial(char* buffer, int length, char* format, ...) {
   va_list args;
   va_start(args, format);
-  vsnprintf(buffer, length, format, args);
+  auto size = vsnprintf(buffer, length, format, args);
   digitalWrite(transmitPin, HIGH);
-  Serial.println(buffer);
+  Serial.write((byte*)buffer, size);
+  Serial.write('\r');
   Serial.flush();
+  if (isLogEnabled)
+    logString('W', buffer, size);
   digitalWrite(transmitPin, LOW);
 }
 
 int readLineFromSerial(char* buffer, int length) {
-  auto byteCount = Serial.readBytesUntil('\r', buffer, length);
-
-  if (byteCount > 0) {
-    byte newLineByte;
-    if (Serial.readBytes(&newLineByte, 1) != 1 || newLineByte != '\n')
-      return -1;
-  }
-
-  return byteCount;
+  auto readCount = Serial.readBytesUntil('\r', buffer, length);
+  if (isLogEnabled)
+    logString('R', buffer, readCount);
+  return readCount;
 }
