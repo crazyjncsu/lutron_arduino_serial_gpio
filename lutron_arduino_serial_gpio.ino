@@ -16,7 +16,7 @@ const int ledPin = 27;
 const int ledOnLevel = LOW; // cmon man
 const int ledOffLevel = HIGH;
 #else
-const byte inputPins[] = { 4, 5, 6  };
+const byte inputPins[] = { 4, 5, 6 };
 const byte outputPins[] = { 7, 8, 9, 10 };
 const byte processorAddressPins[] = { 11 };
 const byte keypadAddressPins[] = { 12 };
