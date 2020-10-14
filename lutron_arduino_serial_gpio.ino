@@ -16,14 +16,14 @@ const int ledPin = 27;
 const int ledOnLevel = LOW; // cmon man
 const int ledOffLevel = HIGH;
 #else
-const byte inputPins[] = { 4, 5, 6, 7 };
-const byte outputPins[] = { 8, 9, 10, 11 };
-const byte processorAddressPins[] = { 12 };
-const byte keypadAddressPins[] = { 13 };
+const byte inputPins[] = { 4, 5, 6  };
+const byte outputPins[] = { 7, 8, 9, 10 };
+const byte processorAddressPins[] = { 11 };
+const byte keypadAddressPins[] = { 12 };
 
 const int transmitPin = 3;
 
-const int ledPin = LED_BUILTIN;
+const int ledPin = 2; // LED_BUILTIN could conflict
 const int ledOnLevel = HIGH;
 const int ledOffLevel = LOW;
 #endif
