@@ -25,11 +25,11 @@ const byte keypadAddressPins[] = { 12 };
 
 const int transmitPin = 3;
 
-const int ledPin = 2; // LED_BUILTIN could conflict
+const int ledPin = 13; // LED_BUILTIN could conflict
 const int ledOnLevel = HIGH;
 const int ledOffLevel = LOW;
 
-const int logEnabledPin = 13;
+const int logEnabledPin = 2;
 #endif
 
 // these are the base lutron IDs which we offset
@@ -84,11 +84,9 @@ void setup() {
   Serial.begin(baudRate);
   Serial.setTimeout(readTimeoutMillis);
 
-  isLogEnabled = digitalRead(logEnabledPin) == LOW;
-
-  digitalWrite(ledPin, ledOnLevel);
   writeLogToSerial();
-  digitalWrite(ledPin, ledOffLevel);
+
+  isLogEnabled = digitalRead(logEnabledPin) == LOW;
 }
 
 void loop() {
@@ -130,9 +128,9 @@ void writeLineToSerial(char* buffer, int length, char* format, ...) {
   Serial.write((byte*)buffer, size);
   Serial.write('\r');
   Serial.flush();
+  digitalWrite(transmitPin, LOW);
   if (isLogEnabled)
     logString('W', buffer, size);
-  digitalWrite(transmitPin, LOW);
 }
 
 int readLineFromSerial(char* buffer, int length) {
