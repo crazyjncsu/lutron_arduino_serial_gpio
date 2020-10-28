@@ -15,6 +15,8 @@ const int transmitPin = 21;
 const int ledPin = 27;
 const int ledOnLevel = LOW; // cmon man
 const int ledOffLevel = HIGH;
+
+const int logEnabledPin = 0;
 #else
 const byte inputPins[] = { 4, 5, 6 };
 const byte outputPins[] = { 7, 8, 9, 10 };
@@ -26,6 +28,8 @@ const int transmitPin = 3;
 const int ledPin = 2; // LED_BUILTIN could conflict
 const int ledOnLevel = HIGH;
 const int ledOffLevel = LOW;
+
+const int logEnabledPin = 13;
 #endif
 
 // these are the base lutron IDs which we offset
@@ -58,7 +62,9 @@ void setup() {
     
     for (auto i = 0; i < sizeof(keypadAddressPins); i++)
       pinMode(keypadAddressPins[i], INPUT_PULLUP);
-  
+
+    pinMode(logEnabledPin, INPUT_PULLUP);
+
     pinMode(ledPin, OUTPUT);
     
     pinMode(transmitPin, OUTPUT);
@@ -78,11 +84,11 @@ void setup() {
   Serial.begin(baudRate);
   Serial.setTimeout(readTimeoutMillis);
 
-  isLogEnabled = false;
-  //isLogEnabled = digitalRead(inputPins[0]) == LOW;
+  isLogEnabled = digitalRead(logEnabledPin) == LOW;
 
-  //if (!isLogEnabled)
-  //  writeLogToSerial();
+  digitalWrite(ledPin, ledOnLevel);
+  writeLogToSerial();
+  digitalWrite(ledPin, ledOffLevel);
 }
 
 void loop() {
