@@ -1,5 +1,7 @@
-const int readTimeoutMillis = 500;
+const int readTimeoutMillis = 200;
 const int baudRate = 9600;
+const int digitalReadNoiseRevalidateCount = 4;
+const int digitalReadNoiseDelayMillis = 20;
 
 const int inputButtonStart = 1; // 3rd column in 24 button keypad view
 const int outputButtonStart = 9; // 2nd column in 24 button keypad view
@@ -104,15 +106,26 @@ void loop() {
       digitalWrite(ledPin, ledOnLevel);
 
       // send keypad button press for any input pin not matching keypad button led state
-      for (auto i = 0; i < sizeof(inputPins); i++)
-        if ((digitalRead(inputPins[i]) == LOW) != (readBuffer[keypadLedStateButtonZeroIndex + inputButtonStart + i] == '1'))
-          writeLineToSerial(writeBuffer, bufferLength, "KBP,[%d:%d:%d],%d", processorAddress, keypadLinkAddress, keypadAddress, inputButtonStart + i);
+      for (auto pinIndex = 0; pinIndex < sizeof(inputPins); pinIndex++) {
+        for (auto retryIndex = 0; true; retryIndex++) {
+          if ((digitalRead(inputPins[pinIndex]) == LOW) == (readBuffer[keypadLedStateButtonZeroIndex + inputButtonStart + pinIndex] == '1')) {
+            break;
+          } else if (retryIndex < digitalReadNoiseRevalidateCount) {
+            delay(digitalReadNoiseDelayMillis);
+            continue;
+          } else {
+            writeLineToSerial(writeBuffer, bufferLength, "KBP,[%d:%d:%d],%d", processorAddress, keypadLinkAddress, keypadAddress, inputButtonStart + pinIndex);
+            writeLineToSerial(writeBuffer, bufferLength, "KBR,[%d:%d:%d],%d", processorAddress, keypadLinkAddress, keypadAddress, inputButtonStart + pinIndex);
+            break;
+          }
+        }
+      }
       
       // set output pin for every keypad led
-      for (auto i = 0; i < sizeof(outputPins); i++) {
-        auto isLedOn = readBuffer[keypadLedStateButtonZeroIndex + outputButtonStart + i] == '1';
-        pinMode(outputPins[i], isLedOn ? OUTPUT : INPUT); // OUTPUT,LOW=grounded
-        digitalWrite(outputPins[i], isLedOn ? LOW : HIGH); // INPUT,HIGH=ungrounded
+      for (auto pinIndex = 0; pinIndex < sizeof(outputPins); pinIndex++) {
+        auto isLedOn = readBuffer[keypadLedStateButtonZeroIndex + outputButtonStart + pinIndex] == '1';
+        pinMode(outputPins[pinIndex], isLedOn ? OUTPUT : INPUT); // OUTPUT,LOW=grounded
+        digitalWrite(outputPins[pinIndex], isLedOn ? LOW : HIGH); // INPUT,HIGH=ungrounded
       }
   
       digitalWrite(ledPin, ledOffLevel);
