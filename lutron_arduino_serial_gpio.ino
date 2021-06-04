@@ -1,10 +1,10 @@
-const int readTimeoutMillis = 200;
+const int readTimeoutMillis = 100;
 const int baudRate = 9600;
-const int digitalReadNoiseRevalidateCount = 4;
-const int digitalReadNoiseDelayMillis = 20;
 
 const int inputButtonStart = 1; // 3rd column in 24 button keypad view
 const int outputButtonStart = 9; // 2nd column in 24 button keypad view
+
+const int requiredIdenticalReadCount = 3;
 
 #ifdef ESP32
 const byte inputPins[] = { 13, 14, 15, 18 };
@@ -46,7 +46,14 @@ const int keypadLedStateButtonZeroIndex = 16;
 const int keypadLinkAddress = 6;
 
 const int bufferLength = 128;
-char readBuffer[bufferLength];
+
+char readBuffer1[bufferLength];
+char readBuffer2[bufferLength];
+char* currentReadBuffer = readBuffer1;
+char* otherReadBuffer = readBuffer2;
+
+int currentReadIdenticalCount = -1;
+
 char writeBuffer[bufferLength];
 
 int processorAddress;
@@ -92,42 +99,48 @@ void setup() {
 }
 
 void loop() {
-  writeLineToSerial(writeBuffer, bufferLength, "RKLS,[%d:%d:%d]", processorAddress, keypadLinkAddress, keypadAddress);
+  writeLineToSerial(writeBuffer, bufferLength, "RKLS, [%d:%d:%d]", processorAddress, keypadLinkAddress, keypadAddress);
 
   auto startTickCount = millis();
+  auto lineLength = readLineFromSerial(currentReadBuffer, bufferLength);
 
-  while (true) {
-    auto lineLength = readLineFromSerial(readBuffer, bufferLength);
+  if (
+    lineLength > 0
+    && millis() - startTickCount < readTimeoutMillis // not really sure why we need to do this
+    && lineLength == keypadLedStateLength
+    && strncmp(currentReadBuffer, keypadLedStateStart, strlen(keypadLedStateStart)) == 0
+  ) {
+    // put value of input pins in read buffer so we can compare
+    for (auto pinIndex = 0; pinIndex < sizeof(inputPins); pinIndex++)
+      currentReadBuffer[lineLength + pinIndex] = digitalRead(inputPins[pinIndex]) == LOW ? '0' : '1';
 
-    if (lineLength == 0 && millis() - startTickCount > readTimeoutMillis)
-      break;
-
-    if (lineLength == keypadLedStateLength && strncmp(readBuffer, keypadLedStateStart, strlen(keypadLedStateStart)) == 0) {
+    if (strncmp(currentReadBuffer, otherReadBuffer, keypadLedStateLength + sizeof(inputPins)) != 0) {
+      auto tempReadBuffer = currentReadBuffer;
+      currentReadBuffer = otherReadBuffer;
+      otherReadBuffer = tempReadBuffer;
+      currentReadIdenticalCount = 0; // start counting
+    } else if (currentReadIdenticalCount == -1) {
+      // noop
+    } else if (++currentReadIdenticalCount >= requiredIdenticalReadCount) {
       digitalWrite(ledPin, ledOnLevel);
 
       // send keypad button press for any input pin not matching keypad button led state
       for (auto pinIndex = 0; pinIndex < sizeof(inputPins); pinIndex++) {
-        for (auto retryIndex = 0; true; retryIndex++) {
-          if ((digitalRead(inputPins[pinIndex]) == LOW) == (readBuffer[keypadLedStateButtonZeroIndex + inputButtonStart + pinIndex] == '1')) {
-            break;
-          } else if (retryIndex < digitalReadNoiseRevalidateCount) {
-            delay(digitalReadNoiseDelayMillis);
-            continue;
-          } else {
-            writeLineToSerial(writeBuffer, bufferLength, "KBP,[%d:%d:%d],%d", processorAddress, keypadLinkAddress, keypadAddress, inputButtonStart + pinIndex);
-            writeLineToSerial(writeBuffer, bufferLength, "KBR,[%d:%d:%d],%d", processorAddress, keypadLinkAddress, keypadAddress, inputButtonStart + pinIndex);
-            break;
-          }
+        if (currentReadBuffer[lineLength + pinIndex] != currentReadBuffer[keypadLedStateButtonZeroIndex + inputButtonStart + pinIndex]) {
+          writeLineToSerial(writeBuffer, bufferLength, "KBP, [%d:%d:%d], %d", processorAddress, keypadLinkAddress, keypadAddress, inputButtonStart + pinIndex);
+          writeLineToSerial(writeBuffer, bufferLength, "KBR, [%d:%d:%d], %d", processorAddress, keypadLinkAddress, keypadAddress, inputButtonStart + pinIndex);
         }
       }
-      
+
       // set output pin for every keypad led
       for (auto pinIndex = 0; pinIndex < sizeof(outputPins); pinIndex++) {
-        auto isLedOn = readBuffer[keypadLedStateButtonZeroIndex + outputButtonStart + pinIndex] == '1';
+        auto isLedOn = currentReadBuffer[keypadLedStateButtonZeroIndex + outputButtonStart + pinIndex] == '1';
         pinMode(outputPins[pinIndex], isLedOn ? OUTPUT : INPUT); // OUTPUT,LOW=grounded
         digitalWrite(outputPins[pinIndex], isLedOn ? LOW : HIGH); // INPUT,HIGH=ungrounded
       }
-  
+
+      currentReadIdenticalCount = -1; // stop counting until we get another change
+
       digitalWrite(ledPin, ledOffLevel);
     }
   }
