@@ -105,7 +105,8 @@ void loop() {
 
   while (true) {
     auto lineLength = readLineFromSerial(currentReadBuffer, bufferLength);
-  
+
+    // once we start reading we need to read everything until we timeout before we send anything another command
     if (lineLength == 0 && millis() - startTickCount > readTimeoutMillis)
       break;
 
