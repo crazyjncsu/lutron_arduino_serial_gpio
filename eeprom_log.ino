@@ -42,8 +42,9 @@ void logString(char operation, char* buffer, int length) {
   logChar(operation);
   logChar(':');
 
-  for (auto i = 0; i < length; i++)
-    logChar(buffer[i]);
+  if (buffer)
+    for (auto i = 0; i < length; i++)
+      logChar(buffer[i]);
 
   logChar('\n');
 }

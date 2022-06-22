@@ -113,15 +113,17 @@ void loop() {
     if (lineLength == keypadLedStateLength && strncmp(currentReadBuffer, keypadLedStateStart, strlen(keypadLedStateStart)) == 0) {
       // put value of input pins in read buffer so we can compare
       for (auto pinIndex = 0; pinIndex < sizeof(inputPins); pinIndex++)
-        currentReadBuffer[lineLength + pinIndex] = digitalRead(inputPins[pinIndex]) == LOW ? '0' : '1';
+        currentReadBuffer[lineLength + pinIndex] = digitalRead(inputPins[pinIndex]) == LOW ? '1' : '0';
   
       if (strncmp(currentReadBuffer, otherReadBuffer, keypadLedStateLength + sizeof(inputPins)) != 0) {
         auto tempReadBuffer = currentReadBuffer;
         currentReadBuffer = otherReadBuffer;
         otherReadBuffer = tempReadBuffer;
         currentReadIdenticalCount = 0; // start counting
+        logStringIfEnabled('C', NULL, 0);
       } else if (currentReadIdenticalCount == -1) {
         // noop
+        logStringIfEnabled('S', NULL, 0);
       } else if (++currentReadIdenticalCount >= requiredIdenticalReadCount) {
         digitalWrite(ledPin, ledOnLevel);
   
@@ -143,9 +145,16 @@ void loop() {
         currentReadIdenticalCount = -1; // stop counting until we get another change
   
         digitalWrite(ledPin, ledOffLevel);
+
+        logStringIfEnabled('I', NULL, 0);
       }
     }
   }
+}
+
+void logStringIfEnabled(char operation, char* buffer, int length) {
+  if (isLogEnabled)
+    logString(operation, buffer, length);
 }
 
 void writeLineToSerial(char* buffer, int length, char* format, ...) {
@@ -157,13 +166,11 @@ void writeLineToSerial(char* buffer, int length, char* format, ...) {
   Serial.write('\r');
   Serial.flush();
   digitalWrite(transmitPin, LOW);
-  if (isLogEnabled)
-    logString('W', buffer, size);
+  logStringIfEnabled('W', buffer, size);
 }
 
 int readLineFromSerial(char* buffer, int length) {
   auto readCount = Serial.readBytesUntil('\r', buffer, length);
-  if (isLogEnabled)
-    logString('R', buffer, readCount);
+  logStringIfEnabled('R', buffer, readCount);
   return readCount;
 }
